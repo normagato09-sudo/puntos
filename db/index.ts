@@ -7,15 +7,18 @@ export type DB = NeonHttpDatabase<typeof schema>;
 
 const url = process.env.DATABASE_URL ?? process.env.POSTGRES_URL;
 
-let dbPromise: Promise<DB> | undefined;
+// Compartido en todo el proceso: las páginas y las rutas /api se empaquetan por
+// separado y, sin esto, en local abrirían dos copias distintas de PGlite.
+const g = globalThis as typeof globalThis & { __puntosDb?: Promise<DB> };
 
 /**
  * En producción usa Neon (DATABASE_URL). En local, si no hay DATABASE_URL,
  * usa un Postgres embebido (PGlite) guardado en la carpeta .pglite.
  */
 export function getDb(): Promise<DB> {
+  let dbPromise = g.__puntosDb;
   if (!dbPromise) {
-    dbPromise = (async () => {
+    dbPromise = g.__puntosDb = (async () => {
       if (url) {
         return drizzleNeon(neon(url), { schema });
       }
@@ -33,7 +36,7 @@ export function getDb(): Promise<DB> {
       return db as unknown as DB;
     })();
     dbPromise.catch(() => {
-      dbPromise = undefined;
+      g.__puntosDb = undefined;
     });
   }
   return dbPromise;

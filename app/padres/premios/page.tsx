@@ -6,6 +6,7 @@ import { listChildren, listRewards } from "@/lib/data";
 import { longDate } from "@/lib/dates";
 import { pendingRewardCount } from "@/lib/queries";
 import { NoKids, ParentHeader, ParentNav, pickChild } from "../shared";
+import { QueuedRewardOps } from "./queued-reward-ops";
 import { RedeemActions } from "./redeem-actions";
 
 export default async function PremiosPadresPage({ searchParams }: { searchParams: Promise<{ hijo?: string }> }) {
@@ -42,6 +43,8 @@ export default async function PremiosPadresPage({ searchParams }: { searchParams
             </span>
           </div>
         )}
+
+        {kid && <QueuedRewardOps childId={kid.id} />}
 
         {toDeliver.length > 0 && (
           <>

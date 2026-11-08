@@ -6,6 +6,7 @@ import { BackIcon, ExternalIcon } from "@/components/icons";
 import { RewardThumb } from "@/components/points-pill";
 import { requireParent } from "@/lib/auth";
 import { getChild } from "@/lib/data";
+import { OnlineLink } from "@/components/online-link";
 import { ApprovePanel } from "./approve-panel";
 
 export default async function AprobarPage({ params }: { params: Promise<{ id: string }> }) {
@@ -65,15 +66,13 @@ export default async function AprobarPage({ params }: { params: Promise<{ id: st
       )}
 
       {r.link ? (
-        <a
+        <OnlineLink
           href={r.link}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
           className="flex h-12 items-center justify-center gap-2 rounded-[14px] border-2 border-brand bg-white text-[15px] font-extrabold text-brand-dark"
         >
           <ExternalIcon size={18} />
           Ver el regalo en la tienda
-        </a>
+        </OnlineLink>
       ) : (
         <p className="text-center text-[13px] font-semibold text-muted">No ha añadido enlace de la tienda.</p>
       )}
@@ -81,7 +80,7 @@ export default async function AprobarPage({ params }: { params: Promise<{ id: st
       {statusText && <p className="rounded-2xl bg-sun-soft px-3.5 py-2.5 text-[13px] font-bold">{statusText}</p>}
 
       {r.status !== "redeemed" && r.status !== "redeem_requested" && (
-        <ApprovePanel rewardId={r.id} initial={initial} points={kid.points} />
+        <ApprovePanel rewardId={r.id} rewardName={r.name} childId={kid.id} initial={initial} points={kid.points} />
       )}
     </div>
   );

@@ -88,6 +88,16 @@ export const reward = pgTable(
   (t) => [index("reward_child_idx").on(t.childId)],
 );
 
+/** Acciones ya aplicadas (por id único) para que un reenvío no duplique puntos. */
+export const processedOp = pgTable("processed_op", {
+  id: text("id").primaryKey(),
+  familyId: integer("family_id")
+    .notNull()
+    .references(() => family.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type Family = typeof family.$inferSelect;
 export type Child = typeof child.$inferSelect;
 export type Task = typeof task.$inferSelect;

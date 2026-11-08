@@ -3,6 +3,7 @@ import { leaveParent } from "@/app/actions";
 import { FamilyIcon } from "@/components/icons";
 import type { ChildWithPoints } from "@/lib/data";
 import { BottomNav } from "@/components/bottom-nav";
+import { parentNavItems } from "@/lib/nav";
 
 export function pickChild(kids: ChildWithPoints[], hijo?: string) {
   const id = Number(hijo);
@@ -10,16 +11,7 @@ export function pickChild(kids: ChildWithPoints[], hijo?: string) {
 }
 
 export function ParentNav({ childId, pendingRewards }: { childId?: number; pendingRewards?: number }) {
-  const q = childId ? `?hijo=${childId}` : "";
-  return (
-    <BottomNav
-      items={[
-        { href: `/padres${q}`, match: "/padres", exact: true, label: "Semana", icon: "calendar" },
-        { href: `/padres/premios${q}`, match: "/padres/premios", label: "Premios", icon: "gift", badge: pendingRewards },
-        { href: `/padres/tareas${q}`, match: "/padres/tareas", label: "Tareas", icon: "list" },
-      ]}
-    />
-  );
+  return <BottomNav items={parentNavItems(childId, pendingRewards)} />;
 }
 
 /** Cabecera: subtítulo, chips para elegir hijo y botón para volver a perfiles. */

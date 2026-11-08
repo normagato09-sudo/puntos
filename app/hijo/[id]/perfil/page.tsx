@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import { Avatar } from "@/components/avatar";
 import { FamilyIcon } from "@/components/icons";
+import { InstallButton } from "@/components/install-button";
 import { requireFamily } from "@/lib/auth";
 import { getChild, listRewards } from "@/lib/data";
 
@@ -41,6 +42,7 @@ export default async function PerfilPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
       <p className="text-center text-sm font-semibold text-muted">Cada tarea confirmada es 1 punto, y cada punto es 1 €.</p>
+      <InstallButton tone="light" />
       <Link
         href="/"
         className="flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-ink text-base font-extrabold text-white"

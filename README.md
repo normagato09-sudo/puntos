@@ -41,6 +41,19 @@ y ejecuta `npm run db:migrate`.
 Si cambias `db/schema.ts`, genera la migración con `npm run db:generate` y haz commit de la
 carpeta `db/migrations`.
 
+## App instalable y sin conexión (PWA)
+
+- `app/manifest.ts`, iconos generados en el build (`app/pwa-icon`, `app/apple-icon.tsx`,
+  `app/pwa-splash` para la pantalla de arranque del iPhone).
+- Service worker en `app/sw.js/route.ts`: archivos de la app en caché; pantallas con
+  "primero red y, sin conexión, la última copia"; si no hay copia, `/offline` pinta los
+  datos guardados en IndexedDB.
+- Acciones sin conexión (hijo: "¡Hecho!" y pedir regalo; padres: Hecho/No y aprobar):
+  se aplican al momento, se guardan en una cola en IndexedDB (`lib/offline`) y se envían
+  en orden a `POST /api/ops` al volver la conexión. Cada acción lleva un id único y el
+  servidor la guarda en `processed_op`, así que reenviarla no duplica nada.
+- El service worker solo se registra en producción (`npm run build && npm start` en local).
+
 ## Reglas
 
 - Cada tarea confirmada por los padres = 1 punto. Las no hechas no restan.

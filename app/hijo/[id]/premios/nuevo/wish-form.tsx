@@ -1,7 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
-import { requestReward } from "@/app/actions";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import { useSync } from "@/components/sync-provider";
+import { hardNavigate } from "@/lib/offline/hooks";
 import { CameraIcon, LinkIcon, SendIcon, XIcon } from "@/components/icons";
 
 /** Reduce la foto en el navegador para guardarla pequeña (JPEG ~640 px). */
@@ -26,7 +28,10 @@ async function shrinkImage(file: File, max = 640): Promise<string> {
 }
 
 export function WishForm({ childId }: { childId: number }) {
-  const [state, action, pending] = useActionState(requestReward.bind(null, childId), undefined);
+  const router = useRouter();
+  const { submit } = useSync();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
   const [price, setPrice] = useState("");
   const [photo, setPhoto] = useState("");
   const [photoError, setPhotoError] = useState("");
@@ -35,7 +40,36 @@ export function WishForm({ childId }: { childId: number }) {
   const field = "flex h-13 items-center gap-2 rounded-[14px] border border-line-strong bg-white px-3.5 focus-within:border-brand focus-within:border-2";
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      className="flex flex-col gap-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setError("");
+        const fd = new FormData(e.currentTarget);
+        const name = String(fd.get("name") ?? "").trim();
+        const link = String(fd.get("link") ?? "").trim();
+        if (!name) return setError("Escribe qué regalo te gustaría.");
+        if (photo && !navigator.onLine) {
+          return setError(
+            "Para enviar la foto hace falta conexión. Quita la foto para enviarlo ahora, o espera a tener internet.",
+          );
+        }
+        setPending(true);
+        const r = await submit({
+          type: "kid.wish",
+          childId,
+          name: name.slice(0, 80),
+          price: n > 0 ? n : null,
+          link: link || null,
+          photo: photo || null,
+        });
+        setPending(false);
+        if (r.error) return setError(r.error);
+        const dest = `/hijo/${childId}/premios`;
+        if (navigator.onLine) router.push(dest);
+        else hardNavigate(dest);
+      }}
+    >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="deseo" className="text-sm font-extrabold">
           Mi regalo
@@ -136,7 +170,7 @@ export function WishForm({ childId }: { childId: number }) {
       )}
       {photoError && <p className="text-sm font-bold text-no">{photoError}</p>}
 
-      {state?.error && <p className="text-sm font-bold text-no">{state.error}</p>}
+      {error && <p className="text-sm font-bold text-no">{error}</p>}
 
       <button
         disabled={pending}

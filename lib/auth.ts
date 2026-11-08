@@ -82,6 +82,14 @@ export async function clearParentCookie() {
   (await cookies()).delete(PARENT_COOKIE);
 }
 
+/** Para la API: familia con acceso (o null), sin redirigir. */
+export async function familyFromCookies(): Promise<Family | null> {
+  const family = await getFamily();
+  if (!family) return null;
+  const jar = await cookies();
+  return safeEqual(jar.get(FAMILY_COOKIE)?.value, familyToken(family)) ? family : null;
+}
+
 /** Familia con acceso concedido por cookie, o redirige a la pantalla de entrada. */
 export async function requireFamily(): Promise<Family> {
   const family = await getFamily();

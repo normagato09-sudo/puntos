@@ -1,13 +1,48 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { approveReward, rejectReward } from "@/app/actions";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { useSync } from "@/components/sync-provider";
+import { hardNavigate } from "@/lib/offline/hooks";
 import { CheckIcon, MinusIcon, PlusIcon } from "@/components/icons";
 import { PRICE_SHORTCUTS } from "@/lib/constants";
 
-export function ApprovePanel({ rewardId, initial, points }: { rewardId: number; initial: number; points: number }) {
+export function ApprovePanel({
+  rewardId,
+  rewardName,
+  childId,
+  initial,
+  points,
+}: {
+  rewardId: number;
+  rewardName: string;
+  childId: number;
+  initial: number;
+  points: number;
+}) {
+  const router = useRouter();
+  const { submit } = useSync();
   const [price, setPrice] = useState(Math.max(1, initial));
-  const [pending, start] = useTransition();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState("");
+
+  async function decide(decision: "approve" | "reject") {
+    setPending(true);
+    setError("");
+    const r = await submit({
+      type: "parent.reward",
+      childId,
+      rewardId,
+      rewardName,
+      decision,
+      price: decision === "approve" ? price : null,
+    });
+    setPending(false);
+    if (r.error) return setError(r.error);
+    const dest = `/padres/premios?hijo=${childId}`;
+    if (navigator.onLine) router.push(dest);
+    else hardNavigate(dest);
+  }
   const set = (v: number) => setPrice(Math.max(1, Math.min(10000, v)));
   const missing = Math.max(0, price - points);
 
@@ -78,11 +113,12 @@ export function ApprovePanel({ rewardId, initial, points }: { rewardId: number; 
         </div>
       </div>
 
+      {error && <p className="text-sm font-bold text-no">{error}</p>}
       <div className="mt-2 flex gap-2.5">
         <button
           type="button"
           disabled={pending}
-          onClick={() => start(() => rejectReward(rewardId))}
+          onClick={() => decide("reject")}
           className="h-14 flex-1 rounded-2xl border-2 border-line-strong bg-white text-[15px] font-extrabold disabled:opacity-60"
         >
           Ahora no
@@ -90,7 +126,7 @@ export function ApprovePanel({ rewardId, initial, points }: { rewardId: number; 
         <button
           type="button"
           disabled={pending}
-          onClick={() => start(() => approveReward(rewardId, price))}
+          onClick={() => decide("approve")}
           className="flex h-14 flex-[2] items-center justify-center gap-2 rounded-2xl bg-brand text-base font-extrabold text-white disabled:opacity-60"
         >
           <CheckIcon size={20} />

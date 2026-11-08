@@ -4,7 +4,6 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getDb, schema } from "@/db";
-import type { TaskStatus } from "@/db/schema";
 import {
   clearParentCookie,
   createFamily,
@@ -16,10 +15,10 @@ import {
   setParentCookie,
 } from "@/lib/auth";
 import { CHILD_COLORS, DEFAULT_TASKS } from "@/lib/constants";
-import { isISODate, todayISO } from "@/lib/dates";
 import { pointsFor } from "@/lib/data";
+import { ownedReward, ownedTask } from "@/lib/ops";
 
-const { child, task, taskLog, reward } = schema;
+const { child, task, reward } = schema;
 
 export type FormState = { error?: string; ok?: boolean } | undefined;
 
@@ -108,62 +107,6 @@ export async function updateChild(childId: number, _: FormState, fd: FormData): 
 
 /* ───────────── Tareas ───────────── */
 
-async function ownedTask(familyId: number, taskId: number) {
-  const db = await getDb();
-  const [row] = await db
-    .select({ task })
-    .from(task)
-    .innerJoin(child, eq(child.id, task.childId))
-    .where(and(eq(task.id, taskId), eq(child.familyId, familyId)));
-  return row?.task ?? null;
-}
-
-async function setLog(taskId: number, date: string, status: TaskStatus | null) {
-  const db = await getDb();
-  if (status === null) {
-    await db.delete(taskLog).where(and(eq(taskLog.taskId, taskId), eq(taskLog.date, date)));
-    return;
-  }
-  await db
-    .insert(taskLog)
-    .values({ taskId, date, status })
-    .onConflictDoUpdate({
-      target: [taskLog.taskId, taskLog.date],
-      set: { status, updatedAt: new Date() },
-    });
-}
-
-/** El hijo marca "¡Hecho!" (o lo desmarca mientras espera). Solo hoy. */
-export async function childToggleTask(taskId: number) {
-  const family = await requireFamily();
-  const t = await ownedTask(family.id, taskId);
-  if (!t || t.archived) return;
-  const db = await getDb();
-  const today = todayISO();
-  const [log] = await db
-    .select()
-    .from(taskLog)
-    .where(and(eq(taskLog.taskId, taskId), eq(taskLog.date, today)));
-  if (!log) await setLog(taskId, today, "waiting");
-  else if (log.status === "waiting") await setLog(taskId, today, null);
-  refresh();
-}
-
-/** Los padres marcan Hecho / No. Pulsar otra vez el mismo botón lo deja pendiente. */
-export async function parentSetTask(taskId: number, date: string, status: "done" | "missed") {
-  const family = await requireParent();
-  if (!isISODate(date) || date > todayISO()) return;
-  const t = await ownedTask(family.id, taskId);
-  if (!t) return;
-  const db = await getDb();
-  const [log] = await db
-    .select()
-    .from(taskLog)
-    .where(and(eq(taskLog.taskId, taskId), eq(taskLog.date, date)));
-  await setLog(taskId, date, log?.status === status ? null : status);
-  refresh();
-}
-
 export async function addTask(childId: number, _: FormState, fd: FormData): Promise<FormState> {
   const family = await requireParent();
   const name = str(fd, "name").slice(0, 60);
@@ -202,59 +145,6 @@ export async function archiveTask(taskId: number) {
 
 /* ───────────── Regalos ───────────── */
 
-async function ownedReward(familyId: number, rewardId: number) {
-  const db = await getDb();
-  const [row] = await db
-    .select({ reward })
-    .from(reward)
-    .innerJoin(child, eq(child.id, reward.childId))
-    .where(and(eq(reward.id, rewardId), eq(child.familyId, familyId)));
-  return row?.reward ?? null;
-}
-
-export async function requestReward(childId: number, _: FormState, fd: FormData): Promise<FormState> {
-  const family = await requireFamily();
-  const db = await getDb();
-  const [k] = await db
-    .select()
-    .from(child)
-    .where(and(eq(child.id, childId), eq(child.familyId, family.id)));
-  if (!k) return { error: "No se encuentra el perfil." };
-
-  const name = str(fd, "name").slice(0, 80);
-  if (!name) return { error: "Escribe qué regalo te gustaría." };
-  const priceRaw = str(fd, "price").replace(",", ".");
-  const price = priceRaw ? Math.round(Number(priceRaw)) : null;
-  if (price !== null && (!Number.isFinite(price) || price < 0 || price > 10000)) {
-    return { error: "El precio no parece correcto." };
-  }
-  let link = str(fd, "link").slice(0, 1000);
-  if (link && !/^https?:\/\//i.test(link)) link = "https://" + link;
-  if (link) {
-    try {
-      new URL(link);
-    } catch {
-      return { error: "El enlace no parece correcto." };
-    }
-  }
-  const photo = str(fd, "photo");
-  if (photo && (!photo.startsWith("data:image/") || photo.length > 1_200_000)) {
-    return { error: "La foto es demasiado grande." };
-  }
-
-  await db.insert(reward).values({
-    childId,
-    name,
-    childPrice: price,
-    link: link || null,
-    photo: photo || null,
-    status: "pending",
-  });
-  refresh();
-  redirect(`/hijo/${childId}/premios`);
-}
-
-/** El hijo quita un regalo que aún no está aprobado (o que le dijeron que no). */
 export async function deleteReward(rewardId: number) {
   const family = await requireFamily();
   const r = await ownedReward(family.id, rewardId);
@@ -264,32 +154,6 @@ export async function deleteReward(rewardId: number) {
   refresh();
 }
 
-export async function approveReward(rewardId: number, price: number) {
-  const family = await requireParent();
-  const r = await ownedReward(family.id, rewardId);
-  if (!r) return;
-  const p = Math.round(price);
-  if (!Number.isFinite(p) || p < 1 || p > 10000) return;
-  const db = await getDb();
-  await db
-    .update(reward)
-    .set({ status: "approved", approvedPrice: p, approvedAt: new Date() })
-    .where(eq(reward.id, rewardId));
-  refresh();
-  redirect(`/padres/premios?hijo=${r.childId}`);
-}
-
-export async function rejectReward(rewardId: number) {
-  const family = await requireParent();
-  const r = await ownedReward(family.id, rewardId);
-  if (!r) return;
-  const db = await getDb();
-  await db.update(reward).set({ status: "rejected" }).where(eq(reward.id, rewardId));
-  refresh();
-  redirect(`/padres/premios?hijo=${r.childId}`);
-}
-
-/** El hijo pulsa "Canjear": se crea una solicitud que confirman los padres. */
 export async function requestRedeem(rewardId: number) {
   const family = await requireFamily();
   const r = await ownedReward(family.id, rewardId);

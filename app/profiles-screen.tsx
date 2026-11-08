@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { FamilyIcon, LockIcon, PlusIcon, StarIcon } from "@/components/icons";
+import { InstallButton } from "@/components/install-button";
 import { PinPad } from "@/components/pin-pad";
+import { snapKey } from "@/components/views/snapshot";
+import { idbSet } from "@/lib/offline/idb";
 
 type Kid = { id: number; name: string; color: string; points: number };
 
@@ -20,6 +23,13 @@ export function ProfilesScreen({
 }) {
   const router = useRouter();
   const [pinFor, setPinFor] = useState<string | null>(askPin ? "/padres" : null);
+
+  // Guardar los perfiles y pedir al service worker que guarde sus pantallas para usarlas sin conexión.
+  useEffect(() => {
+    idbSet(snapKey.profiles, kids);
+    const urls = kids.flatMap((k) => [`/hijo/${k.id}`, `/hijo/${k.id}/tabla`, `/hijo/${k.id}/premios`]);
+    navigator.serviceWorker?.ready.then((reg) => reg.active?.postMessage({ type: "warm", urls: ["/", ...urls] }));
+  }, [kids]);
 
   function goParent(next: string) {
     if (parentUnlocked) router.push(next);
@@ -82,6 +92,7 @@ export function ProfilesScreen({
         </div>
 
         <div className="flex-1" />
+        <InstallButton />
         <button
           type="button"
           onClick={() => goParent("/padres/perfiles")}
