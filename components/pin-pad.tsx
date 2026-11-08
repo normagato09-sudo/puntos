@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-// useEffect se usa para el teclado físico (ordenador).
 import { enterParent } from "@/app/actions";
 import { BackspaceIcon, LockIcon, XIcon } from "./icons";
 
