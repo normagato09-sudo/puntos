@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fff8ee;
+  --color-ink: #2b2433;
+  --color-brand: #2f6feb;
+  --color-brand-dark: #1e5bd6;
+  --color-brand-soft: #eaf1fe;
+  --color-brand-line: #c9d8fb;
+  --color-sun: #ffc94d;
+  --color-sun-soft: #fff6da;
+  --color-sun-chip: #fff1c7;
+  --color-sun-line: #f0d58a;
+  --color-sun-ink: #8a6400;
+  --color-no: #c2410c;
+  --color-no-line: #f2c9b5;
+  --color-line: #eadfcf;
+  --color-line-strong: #dccdb8;
+  --color-dash: #cbbba6;
+  --color-muted: #6b5f57;
+  --color-track: #f1e8da;
+  --color-cell: #f6efe4;
+  --color-night: #17121c;
+  --color-night-2: #3a3142;
+  --color-night-line: #5a5064;
+  --color-night-text: #c9bfd2;
+  --color-plum: #4a4152;
+  --color-mist: #e9e2ee;
+
+  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  --font-sans: var(--font-nunito), system-ui, sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:not(:disabled),
+[role="button"] {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.pb-nav {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
