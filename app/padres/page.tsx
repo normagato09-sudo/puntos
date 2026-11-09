@@ -1,6 +1,6 @@
 import { ParentWeek } from "@/components/views/parent-week";
 import { requireParent } from "@/lib/auth";
-import { activeTasks, listChildren, listRewards, logsBetween } from "@/lib/data";
+import { activeTasks, dayPointsBetween, listChildren, listRewards, logsBetween } from "@/lib/data";
 import { isISODate, mondayOf, todayISO, weekDates, weekLabel } from "@/lib/dates";
 import { pendingRewardCount } from "@/lib/queries";
 import { goalInfos, serverStamp } from "@/lib/view-data";
@@ -32,10 +32,11 @@ export default async function SemanaPage({
   }
 
   const dates = weekDates(monday);
-  const [tasks, logs, rewards] = await Promise.all([
+  const [tasks, logs, rewards, dayPoints] = await Promise.all([
     activeTasks(kid.id),
     logsBetween(kid.id, dates[0], dates[6]),
     listRewards(kid.id),
+    dayPointsBetween(kid.id, dates[0], dates[6]),
   ]);
 
   return (
@@ -51,6 +52,7 @@ export default async function SemanaPage({
           day,
           tasks: tasks.map((t) => ({ id: t.id, name: t.name, days: t.days })),
           logs: Object.fromEntries(logs),
+          dayPoints,
           goals: goalInfos(rewards),
         }}
         header={

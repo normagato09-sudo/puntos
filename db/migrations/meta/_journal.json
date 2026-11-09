@@ -15,6 +15,13 @@
       "when": 1794154045272,
       "tag": "0001_processed_op",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794250691727,
+      "tag": "0002_day_point",
+      "breakpoints": true
     }
   ]
 }

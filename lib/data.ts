@@ -5,21 +5,23 @@ import { getDb, schema } from "@/db";
 import type { Child, Reward, Task, TaskStatus } from "@/db/schema";
 import { weekdayIndex } from "./dates";
 
-const { child, task, taskLog, reward } = schema;
+const { child, task, taskLog, reward, dayPoint } = schema;
 
 export type ChildWithPoints = Child & { points: number };
 
-/** Puntos = tareas confirmadas − regalos canjeados. Nunca se guardan a mano. */
+/**
+ * Puntos = días completos (todas las tareas del día hechas y confirmadas)
+ * − regalos canjeados. Nunca se guardan a mano.
+ */
 export async function pointsFor(childIds: number[]): Promise<Map<number, number>> {
   const result = new Map<number, number>(childIds.map((id) => [id, 0]));
   if (childIds.length === 0) return result;
   const db = await getDb();
   const earned = await db
-    .select({ childId: task.childId, n: sql<number>`count(*)::int` })
-    .from(taskLog)
-    .innerJoin(task, eq(task.id, taskLog.taskId))
-    .where(and(inArray(task.childId, childIds), eq(taskLog.status, "done")))
-    .groupBy(task.childId);
+    .select({ childId: dayPoint.childId, n: sql<number>`count(*)::int` })
+    .from(dayPoint)
+    .where(inArray(dayPoint.childId, childIds))
+    .groupBy(dayPoint.childId);
   const spent = await db
     .select({ childId: reward.childId, n: sql<number>`coalesce(sum(${reward.approvedPrice}), 0)::int` })
     .from(reward)
@@ -75,6 +77,26 @@ export async function logsBetween(childId: number, from: string, to: string) {
   const map = new Map<string, TaskStatus>();
   for (const r of rows) map.set(`${r.taskId}|${r.date}`, r.status as TaskStatus);
   return map;
+}
+
+/** Días (entre dos fechas) en que el hijo ganó su punto por hacerlo todo. */
+export async function dayPointsBetween(childId: number, from: string, to: string): Promise<string[]> {
+  const db = await getDb();
+  const rows = await db
+    .select({ date: dayPoint.date })
+    .from(dayPoint)
+    .where(and(eq(dayPoint.childId, childId), gte(dayPoint.date, from), lte(dayPoint.date, to)));
+  return rows.map((r) => r.date);
+}
+
+/** Total de días completos de un hijo (para su perfil). */
+export async function completeDays(childId: number): Promise<number> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(dayPoint)
+    .where(eq(dayPoint.childId, childId));
+  return Number(row?.n ?? 0);
 }
 
 export function tasksForDay(tasks: Task[], logs: Map<string, TaskStatus>, iso: string): DayTask[] {

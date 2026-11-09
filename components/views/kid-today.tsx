@@ -27,6 +27,14 @@ export function KidToday({ data, fromServer = true }: { data: KidTodayData; from
       status: effectiveStatus(sameDay ? (data.logs[`${t.id}|${today}`] ?? null) : null, t.id, today, ops),
     }));
 
+  const done = list.filter((t) => t.status === "done").length;
+  const touched = ops.some((o) => o.type === "parent.task" && o.childId === data.childId && o.date === today);
+  // El punto del día: todas las tareas de hoy hechas y confirmadas.
+  const dayComplete = touched
+    ? list.length > 0 && done === list.length
+    : sameDay && data.dayComplete;
+  const missing = list.length - done;
+
   const g = pickGoal(data.goals, data.points);
   const price = g?.goal.price ?? 0;
   const left = price - data.points;
@@ -94,6 +102,30 @@ export function KidToday({ data, fromServer = true }: { data: KidTodayData; from
         <span className="text-right text-xs font-bold text-muted">Márcalas y tus padres confirman</span>
       </div>
 
+      {list.length > 0 && (
+        <div
+          className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${
+            dayComplete ? "bg-ink text-white" : "border border-line bg-white"
+          }`}
+        >
+          <StarIcon filled={dayComplete} size={26} className={dayComplete ? "flex-none text-sun" : "flex-none text-muted"} />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-sm font-extrabold">
+              {dayComplete
+                ? "¡Día completo! +1 punto"
+                : `Hechas ${done} de ${list.length} · ${
+                    missing === 1 ? "te falta 1 para el punto de hoy" : `te faltan ${missing} para el punto de hoy`
+                  }`}
+            </span>
+            {!dayComplete && (
+              <div className="h-2 overflow-hidden rounded-full bg-track">
+                <div className="h-full rounded-full bg-brand" style={{ width: `${(done / list.length) * 100}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-sm font-bold text-no">{error}</p>}
 
       {list.length === 0 && (
@@ -126,7 +158,7 @@ export function KidToday({ data, fromServer = true }: { data: KidTodayData; from
               <span
                 className={`text-xs font-extrabold ${ok ? "text-brand-dark" : wait ? "text-sun-ink" : "text-muted"}`}
               >
-                {ok ? "+1 punto · ¡confirmada!" : wait ? "Esperando a tus padres" : missed ? "Hoy no ha sumado" : "+1 punto"}
+                {ok ? "¡Confirmada!" : wait ? "Esperando a tus padres" : missed ? "No hecha · hoy no suma punto" : "Por hacer"}
               </span>
             </div>
             {!t.status && (

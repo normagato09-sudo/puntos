@@ -20,6 +20,8 @@ export type KidTodayData = {
   day: string;
   tasks: { id: number; name: string; days: string }[];
   logs: Record<string, TaskState>;
+  /** Si ese día ya ganó su punto (todas las tareas hechas). */
+  dayComplete: boolean;
   goals: GoalInfo[];
 };
 
@@ -34,6 +36,8 @@ export type ParentWeekData = {
   day: string;
   tasks: { id: number; name: string; days: string }[];
   logs: Record<string, TaskState>;
+  /** Días de la semana que ya ganaron su punto. */
+  dayPoints: string[];
   goals: GoalInfo[];
 };
 

@@ -14,6 +14,7 @@ export function parentNavItems(childId?: number, pendingRewards?: number): NavIt
   const q = childId ? `?hijo=${childId}` : "";
   return [
     { href: `/padres${q}`, match: "/padres", exact: true, label: "Semana", icon: "calendar" },
+    { href: `/padres/tabla${q}`, match: "/padres/tabla", label: "Tabla", icon: "grid" },
     { href: `/padres/premios${q}`, match: "/padres/premios", label: "Premios", icon: "gift", badge: pendingRewards },
     { href: `/padres/tareas${q}`, match: "/padres/tareas", label: "Tareas", icon: "list" },
   ];

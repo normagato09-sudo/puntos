@@ -56,8 +56,11 @@ carpeta `db/migrations`.
 
 ## Reglas
 
-- Cada tarea confirmada por los padres = 1 punto. Las no hechas no restan.
-- Puntos de un hijo = tareas confirmadas − regalos canjeados (se calcula, no se guarda).
+- 1 punto por cada día en que el hijo hace TODAS las tareas de ese día (confirmadas por los padres).
+  Si falta alguna, ese día no suma, pero tampoco resta.
+- Puntos de un hijo = días completos − regalos canjeados. Los días completos se guardan en
+  `day_point` y solo se recalculan cuando cambia algo de ese día (añadir o quitar tareas no
+  cambia los puntos de días pasados).
 - Un regalo aprobado sale en la casilla de su precio en la tabla del 1 al 100.
 - Al canjear, el hijo pide el regalo y los padres confirman cuando lo entregan: ahí se restan los puntos.
-- Las tareas borradas se archivan para no perder los puntos que ya dieron.
+- Las tareas borradas se archivan. Los padres pueden cambiar el nombre de una tarea y ver la tabla de cada hijo.

@@ -1,12 +1,12 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/db";
 import type { Family, TaskStatus } from "@/db/schema";
 import type { Op, OpResult } from "@/lib/offline/types";
 import { PARENT_OPS } from "@/lib/offline/types";
-import { addDays, isISODate, todayISO } from "./dates";
+import { addDays, isISODate, todayISO, weekdayIndex } from "./dates";
 
-const { child, task, taskLog, reward, processedOp } = schema;
+const { child, task, taskLog, reward, processedOp, dayPoint } = schema;
 
 export async function ownedTask(familyId: number, taskId: number) {
   const db = await getDb();
@@ -38,6 +38,33 @@ export async function setLog(taskId: number, date: string, status: TaskStatus | 
     .insert(taskLog)
     .values({ taskId, date, status })
     .onConflictDoUpdate({ target: [taskLog.taskId, taskLog.date], set: { status, updatedAt: new Date() } });
+}
+
+/**
+ * Vuelve a mirar si un día está completo (todas las tareas activas de ese día hechas)
+ * y da o quita su punto.
+ */
+export async function refreshDay(childId: number, date: string) {
+  const db = await getDb();
+  const tasks = await db
+    .select({ id: task.id, days: task.days })
+    .from(task)
+    .where(and(eq(task.childId, childId), eq(task.archived, false)));
+  const todays = tasks.filter((t) => t.days[weekdayIndex(date)] === "1");
+  let complete = false;
+  if (todays.length > 0) {
+    const logs = await db
+      .select({ taskId: taskLog.taskId, status: taskLog.status })
+      .from(taskLog)
+      .where(and(inArray(taskLog.taskId, todays.map((t) => t.id)), eq(taskLog.date, date)));
+    const done = new Set(logs.filter((l) => l.status === "done").map((l) => l.taskId));
+    complete = todays.every((t) => done.has(t.id));
+  }
+  if (complete) {
+    await db.insert(dayPoint).values({ childId, date }).onConflictDoNothing();
+  } else {
+    await db.delete(dayPoint).where(and(eq(dayPoint.childId, childId), eq(dayPoint.date, date)));
+  }
 }
 
 export type WishFields = { name: string; price: number | null; link: string | null; photo: string | null };
@@ -144,6 +171,7 @@ async function run(family: Family, op: Op): Promise<Outcome> {
       const t = await ownedTask(family.id, op.taskId);
       if (!t || t.childId !== op.childId) return fail(422, "Esa tarea ya no existe.");
       await setLog(t.id, op.date, op.status);
+      await refreshDay(t.childId, op.date);
       return ok();
     }
 

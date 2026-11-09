@@ -6,7 +6,16 @@ import { BackIcon, ChevronRightIcon, SmallGiftIcon } from "@/components/icons";
 import { PointsPill } from "@/components/points-pill";
 import { plural, snapKey, useSaveSnapshot, type KidTableData } from "./snapshot";
 
-export function KidTable({ data, fromServer = true }: { data: KidTableData; fromServer?: boolean }) {
+export function KidTable({
+  data,
+  fromServer = true,
+  parent,
+}: {
+  data: KidTableData;
+  fromServer?: boolean;
+  /** Vista de los padres: título con el nombre, textos en tercera persona y su propia URL. */
+  parent?: { name: string; header?: React.ReactNode };
+}) {
   useSaveSnapshot(snapKey.kidTable(data.childId), data, fromServer);
   const { points, goals } = data;
 
@@ -18,7 +27,11 @@ export function KidTable({ data, fromServer = true }: { data: KidTableData; from
 
   function setPage(p: number) {
     setPageState(p);
-    window.history.replaceState(null, "", `/hijo/${data.childId}/tabla?pagina=${p}`);
+    window.history.replaceState(
+      null,
+      "",
+      parent ? `/padres/tabla?hijo=${data.childId}&pagina=${p}` : `/hijo/${data.childId}/tabla?pagina=${p}`,
+    );
   }
 
   const byPrice = new Map<number, string[]>();
@@ -45,12 +58,15 @@ export function KidTable({ data, fromServer = true }: { data: KidTableData; from
 
   return (
     <div className="flex flex-col gap-3.5">
+      {parent?.header}
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-[28px] font-semibold">Mi tabla</h1>
+        <h1 className="font-display text-[28px] font-semibold">{parent ? `Tabla de ${parent.name}` : "Mi tabla"}</h1>
         <PointsPill points={points} />
       </div>
       <p className="text-sm font-semibold text-muted">
-        Cada punto es 1 €. Las casillas amarillas tienen un regalo esperándote.
+        {parent
+          ? "Cada punto es un día con todas las tareas hechas (1 punto = 1 €). En amarillo, sus regalos aprobados."
+          : "Cada punto es un día con todas tus tareas hechas (1 punto = 1 €). Las casillas amarillas tienen un regalo esperándote."}
       </p>
 
       {pages > 1 && (
@@ -114,10 +130,21 @@ export function KidTable({ data, fromServer = true }: { data: KidTableData; from
       <div className="flex flex-col gap-2">
         {goals.length === 0 && (
           <p className="rounded-2xl border border-line bg-white p-3.5 text-sm font-semibold text-muted">
-            Cuando tus padres aprueben un premio, saldrá aquí en su casilla.{" "}
-            <Link href={`/hijo/${data.childId}/premios/nuevo`} className="font-extrabold text-brand-dark underline">
-              Pedir un premio
-            </Link>
+            {parent ? (
+              <>
+                Cuando apruebes un regalo, saldrá aquí en su casilla.{" "}
+                <Link href={`/padres/premios?hijo=${data.childId}`} className="font-extrabold text-brand-dark underline">
+                  Ver premios
+                </Link>
+              </>
+            ) : (
+              <>
+                Cuando tus padres aprueben un premio, saldrá aquí en su casilla.{" "}
+                <Link href={`/hijo/${data.childId}/premios/nuevo`} className="font-extrabold text-brand-dark underline">
+                  Pedir un premio
+                </Link>
+              </>
+            )}
           </p>
         )}
         {goals.map((g) => {
@@ -136,9 +163,13 @@ export function KidTable({ data, fromServer = true }: { data: KidTableData; from
                 <span className="text-[15px] font-extrabold">{g.name}</span>
                 <span className={`text-xs font-extrabold ${ready ? "text-brand-dark" : "text-muted"}`}>
                   {g.requested
-                    ? "¡Pedido! Esperando a tus padres"
+                    ? parent
+                      ? "Lo ha pedido canjear"
+                      : "¡Pedido! Esperando a tus padres"
                     : ready
-                      ? "¡Ya lo puedes canjear!"
+                      ? parent
+                        ? "Ya lo puede canjear"
+                        : "¡Ya lo puedes canjear!"
                       : `Faltan ${plural(g.price - points, "punto", "puntos")}`}
                 </span>
               </span>

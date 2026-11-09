@@ -16,7 +16,8 @@ import {
 } from "@/lib/auth";
 import { CHILD_COLORS, DEFAULT_TASKS } from "@/lib/constants";
 import { pointsFor } from "@/lib/data";
-import { ownedReward, ownedTask } from "@/lib/ops";
+import { todayISO } from "@/lib/dates";
+import { ownedReward, ownedTask, refreshDay } from "@/lib/ops";
 
 const { child, task, reward } = schema;
 
@@ -118,6 +119,8 @@ export async function addTask(childId: number, _: FormState, fd: FormData): Prom
     .where(and(eq(child.id, childId), eq(child.familyId, family.id)));
   if (!k) return { error: "No se encuentra el perfil." };
   await db.insert(task).values({ childId, name, days: "1111111" });
+  // Una tarea nueva cuenta desde hoy: el día de hoy ya no está completo hasta hacerla.
+  await refreshDay(childId, todayISO());
   refresh();
   return { ok: true };
 }
@@ -130,6 +133,7 @@ export async function toggleTaskDay(taskId: number, day: number) {
   days[day] = days[day] === "1" ? "0" : "1";
   const db = await getDb();
   await db.update(task).set({ days: days.join("") }).where(eq(task.id, taskId));
+  await refreshDay(t.childId, todayISO());
   refresh();
 }
 
@@ -140,7 +144,20 @@ export async function archiveTask(taskId: number) {
   if (!t) return;
   const db = await getDb();
   await db.update(task).set({ archived: true }).where(eq(task.id, taskId));
+  await refreshDay(t.childId, todayISO());
   refresh();
+}
+
+export async function renameTask(taskId: number, name: string): Promise<FormState> {
+  const family = await requireParent();
+  const clean = name.trim().slice(0, 60);
+  if (!clean) return { error: "Escribe el nombre de la tarea." };
+  const t = await ownedTask(family.id, taskId);
+  if (!t) return { error: "Esa tarea ya no existe." };
+  const db = await getDb();
+  await db.update(task).set({ name: clean }).where(eq(task.id, taskId));
+  refresh();
+  return { ok: true };
 }
 
 /* ───────────── Regalos ───────────── */

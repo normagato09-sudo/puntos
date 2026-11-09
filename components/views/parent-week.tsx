@@ -33,15 +33,19 @@ export function ParentWeek({
     effectiveStatus(data.logs[`${taskId}|${d}`] ?? null, taskId, d, ops);
   const scheduled = (d: string) => data.tasks.filter((t) => t.days[(dates.indexOf(d) + 7) % 7] === "1");
 
-  // Puntos: los del servidor más lo que cambian las confirmaciones aún sin enviar de esta semana.
+  // Un día suma 1 punto si TODAS sus tareas están hechas. Los días tocados por
+  // cambios aún sin enviar se calculan aquí; el resto, como dice el servidor.
+  const serverComplete = new Set(data.dayPoints ?? []);
+  const touched = new Set(
+    ops.flatMap((o) => (o.type === "parent.task" && o.childId === data.childId ? [o.date] : [])),
+  );
+  const isComplete = (d: string) => {
+    if (!touched.has(d)) return serverComplete.has(d);
+    const list = scheduled(d);
+    return list.length > 0 && list.every((t) => status(t.id, d) === "done");
+  };
   let delta = 0;
-  for (const d of dates) {
-    for (const t of data.tasks) {
-      const before = data.logs[`${t.id}|${d}`] ?? null;
-      const after = status(t.id, d);
-      delta += (after === "done" ? 1 : 0) - (before === "done" ? 1 : 0);
-    }
-  }
+  for (const d of dates) delta += (isComplete(d) ? 1 : 0) - (serverComplete.has(d) ? 1 : 0);
   const points = data.points + delta;
 
   const g = pickGoal(data.goals, points);
@@ -56,6 +60,8 @@ export function ParentWeek({
   const dayTasks = scheduled(day).map((t) => ({ ...t, status: status(t.id, day) }));
   const waiting = dayTasks.filter((t) => t.status === "waiting").length;
   const doneDay = dayTasks.filter((t) => t.status === "done").length;
+  const dayComplete = isComplete(day);
+  const missing = dayTasks.length - doneDay;
   const isFuture = day > today;
   const weekHref = (d: string) => `/padres?hijo=${data.childId}&dia=${d}`;
 
@@ -129,16 +135,21 @@ export function ParentWeek({
                 key={d}
                 type="button"
                 onClick={() => pickDay(d)}
-                aria-label={`${DAY_NAMES[i]} ${shortDate(d)}: ${done} de ${list.length} hechas`}
+                aria-label={`${DAY_NAMES[i]} ${shortDate(d)}: ${done} de ${list.length} hechas${
+                  isComplete(d) ? ", día completo: +1 punto" : ""
+                }`}
                 aria-pressed={on}
                 className={`relative flex h-14 flex-col items-center justify-center gap-px rounded-[14px] border ${
-                  on ? "border-ink bg-ink text-white" : "border-line bg-white text-ink"
+                  on ? "border-ink bg-ink text-white" : isComplete(d) ? "border-sun-line bg-sun-soft text-ink" : "border-line bg-white text-ink"
                 } ${d > today && !on ? "opacity-60" : ""}`}
               >
                 <span className="font-display text-[17px] font-semibold">{DAY_KEYS[i]}</span>
                 <span className="text-[11px] font-bold">
                   {done}/{list.length}
                 </span>
+                {isComplete(d) && (
+                  <StarIcon filled size={12} className={`absolute top-1 left-1 ${on ? "text-sun" : "text-sun-ink"}`} />
+                )}
                 {wait && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-sun" />}
               </button>
             );
@@ -156,7 +167,13 @@ export function ParentWeek({
               {waiting} por confirmar
             </span>
           ) : (
-            <span className="text-[13px] font-bold text-muted">+{plural(doneDay, "pt", "pts")} este día</span>
+            <span className={`text-[13px] font-extrabold ${dayComplete ? "text-sun-ink" : "text-muted"}`}>
+              {dayTasks.length === 0
+                ? ""
+                : dayComplete
+                  ? "¡Día completo! +1 punto"
+                  : `${missing === 1 ? "Falta" : "Faltan"} ${plural(missing, "tarea", "tareas")} para el punto`}
+            </span>
           )}
         </div>
 
@@ -187,10 +204,10 @@ export function ParentWeek({
                   {w
                     ? "Dice que la ha hecho · ¿confirmas?"
                     : t.status === "done"
-                      ? "+1 punto · confirmada"
+                      ? "Confirmada"
                       : t.status === "missed"
-                        ? "No hecha"
-                        : "1 punto"}
+                        ? "No hecha · este día no suma"
+                        : "Pendiente"}
                 </span>
               </div>
               <button

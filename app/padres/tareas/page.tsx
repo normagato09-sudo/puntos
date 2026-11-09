@@ -8,6 +8,7 @@ import { DAY_KEYS, DAY_NAMES } from "@/lib/dates";
 import { pendingRewardCount } from "@/lib/queries";
 import { NoKids, ParentHeader, ParentNav, pickChild } from "../shared";
 import { NewTaskForm, SettingsForms } from "./forms";
+import { TaskName } from "./task-name";
 
 export default async function TareasPage({ searchParams }: { searchParams: Promise<{ hijo?: string }> }) {
   const family = await requireParent();
@@ -23,8 +24,8 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
         <h1 className="mt-1 font-display text-[28px] font-semibold">Tareas</h1>
 
         <div className="flex flex-col gap-0.5 rounded-2xl bg-ink px-3.5 py-3 text-white">
-          <span className="font-display text-lg font-semibold text-sun">Cada tarea = 1 punto = 1 €</span>
-          <span className="text-[13px] font-semibold text-mist">Todas las tareas valen lo mismo.</span>
+          <span className="font-display text-lg font-semibold text-sun">Día con todas las tareas hechas = 1 punto = 1 €</span>
+          <span className="text-[13px] font-semibold text-mist">Si un día falta alguna, ese día no suma (pero tampoco resta).</span>
         </div>
 
         {!kid && <NoKids />}
@@ -38,8 +39,7 @@ export default async function TareasPage({ searchParams }: { searchParams: Promi
         {tasks.map((t) => (
           <div key={t.id} className="flex flex-col gap-2 rounded-2xl border border-line bg-white pt-2.5 pr-2 pb-3 pl-3.5">
             <div className="flex items-center justify-between gap-2">
-              <span className="flex-1 text-[15px] font-extrabold">{t.name}</span>
-              <span className="rounded-full bg-sun-chip px-2.5 py-1 text-xs font-extrabold">1 pt</span>
+              <TaskName id={t.id} name={t.name} />
               <form action={archiveTask.bind(null, t.id)}>
                 <SubmitButton
                   aria-label={`Borrar la tarea ${t.name}`}

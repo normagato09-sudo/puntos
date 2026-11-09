@@ -3,6 +3,7 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   serial,
   text,
   timestamp,
@@ -86,6 +87,24 @@ export const reward = pgTable(
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
   },
   (t) => [index("reward_child_idx").on(t.childId)],
+);
+
+/**
+ * Días completos: 1 punto por cada día en que el hijo hizo TODAS las tareas de ese día.
+ * Se recalcula solo cuando cambia algo de ese día, así añadir o quitar tareas
+ * más adelante no cambia los puntos ya ganados en días pasados.
+ */
+export const dayPoint = pgTable(
+  "day_point",
+  {
+    childId: integer("child_id")
+      .notNull()
+      .references(() => child.id, { onDelete: "cascade" }),
+    /** Fecha local YYYY-MM-DD. */
+    date: text("date").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.childId, t.date] })],
 );
 
 /** Acciones ya aplicadas (por id único) para que un reenvío no duplique puntos. */
